@@ -268,6 +268,90 @@ Raj works with large datasets in PostgreSQL and writes complex analytical querie
     - Provides context about possible causes
     - Suggests immediate mitigation steps
 
+### AI Assistant
+
+23. **Natural Language Query Assistance**
+    > As a developer, I want to describe my data needs in plain English so that I can get SQL queries without writing them from scratch.
+
+    **Acceptance Criteria:**
+    - Accepts natural language descriptions of query intent
+    - Generates syntactically correct SQL based on descriptions
+    - Considers database schema in query generation
+    - Provides explanations of generated queries
+    - Allows iterative refinement through conversation
+
+24. **AI-Powered Query Explanations**
+    > As a data scientist, I want plain-language explanations of complex queries so that I can understand what they're doing without deep SQL expertise.
+
+    **Acceptance Criteria:**
+    - Breaks down queries into logical components
+    - Explains purpose of each query part in simple terms
+    - Identifies potential performance concerns
+    - Relates queries to database objects they interact with
+    - Provides visual representation of query logic flow
+
+25. **Conversational DBA Assistant**
+    > As a DBA, I want a conversational AI assistant that can answer my PostgreSQL questions so that I can quickly find solutions without extensive research.
+
+    **Acceptance Criteria:**
+    - Provides accurate answers to PostgreSQL technical questions
+    - Maintains context throughout multi-turn conversations
+    - Offers code examples when appropriate
+    - Cites sources or documentation for information
+    - Adapts to user's technical expertise level
+
+26. **Schema-Aware AI Recommendations**
+    > As an application developer, I want AI recommendations that understand my specific database schema so that I get contextually relevant advice.
+
+    **Acceptance Criteria:**
+    - Analyzes existing schema relationships
+    - Provides recommendations tailored to specific tables and relationships
+    - References actual column names in suggestions
+    - Considers existing application query patterns
+    - Adapts recommendations as schema evolves
+
+## Phase 4 User Stories: Advanced AI Features
+
+27. **Anomaly Detection**
+    > As a DevOps engineer, I want automatic detection of performance anomalies so that I can address issues before they impact users.
+
+    **Acceptance Criteria:**
+    - Establishes normal performance patterns automatically
+    - Detects deviations from established patterns
+    - Minimizes false positives through learning
+    - Provides context about anomalies detected
+    - Suggests potential causes and solutions
+
+28. **Workload Prediction**
+    > As a DBA, I want AI-powered workload prediction so that I can proactively scale resources before peak demand.
+
+    **Acceptance Criteria:**
+    - Identifies patterns in historical workload data
+    - Predicts future resource demands
+    - Shows confidence levels for predictions
+    - Accounts for temporal patterns (time of day, seasonal, etc.)
+    - Recommends proactive scaling or optimization actions
+
+29. **Autonomous Optimization**
+    > As a DBA, I want safe autonomous optimization of non-critical databases so that routine optimizations happen automatically.
+
+    **Acceptance Criteria:**
+    - Implements low-risk optimizations automatically
+    - Operates within configurable safety parameters
+    - Schedules operations during approved maintenance windows
+    - Provides detailed logs of all changes made
+    - Includes automatic rollback capabilities for issues
+
+30. **Custom AI Agent Creation**
+    > As a DevOps engineer, I want to create custom AI agents for specific database tasks so that I can automate routine procedures.
+
+    **Acceptance Criteria:**
+    - Provides interface for defining agent behaviors
+    - Allows specification of agent permissions and constraints
+    - Supports scheduling of agent activities
+    - Includes monitoring of agent actions
+    - Enables feedback mechanism to improve agent performance
+
 ## Conclusion
 
 These user stories provide a foundation for development, focusing on real user needs and workflows. The stories are organized to align with the phased development approach outlined in the Priorities document, with Phase 1 stories representing the core MVP functionality around query optimization.
