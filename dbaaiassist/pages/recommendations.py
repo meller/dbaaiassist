@@ -16,8 +16,9 @@ def show_recommendations():
     # Get recommendations from session state
     recommendations = st.session_state.get("recommendations", [])
     
-    # Get example queries for recommendations (if available)
+    # Get example queries and explanations for recommendations (if available)
     recommendation_examples = st.session_state.get("recommendation_examples", {})
+    recommendation_explanations = st.session_state.get("recommendation_explanations", {})
     
     if not recommendations:
         st.info("No recommendations available yet. Analyze logs or database to generate recommendations.")
@@ -132,11 +133,17 @@ def show_recommendations():
                         st.markdown(", ".join(rec.related_objects))
                     
                     # Example query that triggered this recommendation
-                    original_index = filtered_recommendations.index(rec)
+                    original_index = i
                     if str(original_index) in recommendation_examples or original_index in recommendation_examples:
                         example_key = str(original_index) if str(original_index) in recommendation_examples else original_index
                         st.markdown("**Example Query**")
                         st.code(recommendation_examples[example_key], language="sql")
+                        
+                        # Show explanation for how this improves the query
+                        if example_key in recommendation_explanations or str(example_key) in recommendation_explanations:
+                            explanation_key = example_key if example_key in recommendation_explanations else str(example_key)
+                            st.markdown("**Performance Impact**")
+                            st.markdown(f"*{recommendation_explanations[explanation_key]}*")
                     
                     # SQL script
                     if rec.sql_script:

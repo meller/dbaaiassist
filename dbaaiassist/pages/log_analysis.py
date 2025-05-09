@@ -116,6 +116,116 @@ def generate_query_recommendations(query_text, detected_tables=None):
     
     return "\n".join(recommendations)
 
+def generate_improvement_explanation(recommendation, query_text, detected_tables):
+    """Generate detailed explanations for how a recommendation improves query performance"""
+    
+    # Get recommendation type and content
+    rec_text = str(recommendation)
+    
+    # Initialize explanation components
+    problem = ""
+    solution = ""
+    benefit = ""
+    metrics = ""
+    
+    # Check for index recommendation
+    if "CREATE INDEX" in rec_text:
+        # Extract table and column names from recommendation
+        import re
+        index_match = re.search(r'CREATE INDEX .+ ON ([a-zA-Z0-9_\.]+) \(([^)]+)\)', rec_text)
+        
+        if index_match:
+            table_name = index_match.group(1)
+            column_names = index_match.group(2)
+            columns = [c.strip() for c in column_names.split(",")]
+            
+            # Identify specific query patterns
+            is_where_clause = any(f"WHERE" in query_text.upper() and col in query_text for col in columns)
+            is_join_column = any(f"JOIN" in query_text.upper() and col in query_text for col in columns)
+            is_sort_column = any(f"ORDER BY" in query_text.upper() and col in query_text for col in columns)
+            is_group_column = any(f"GROUP BY" in query_text.upper() and col in query_text for col in columns)
+            
+            # Problem description
+            if is_where_clause:
+                problem = f"The query filters on column(s) {column_names} without a suitable index, causing a full table scan on {table_name}."
+            elif is_join_column:
+                problem = f"The join condition on column(s) {column_names} lacks an index, forcing PostgreSQL to use a slower join strategy."
+            elif is_sort_column:
+                problem = f"Sorting on {column_names} requires an expensive in-memory or disk-based sort operation."
+            elif is_group_column:
+                problem = f"Grouping by {column_names} requires a full scan and hash aggregation."
+            else:
+                problem = f"Table {table_name} is being accessed inefficiently for operations on column(s) {column_names}."
+            
+            # Solution description
+            solution = f"Creating an index on {column_names} will allow PostgreSQL to quickly locate the relevant rows."
+            
+            # Benefits
+            if is_where_clause:
+                benefit = "This eliminates the need for a sequential scan, allowing the database to jump directly to the matching rows."
+                metrics = "Query time could be reduced by 10-100x for selective conditions (depending on table size and selectivity)."
+            elif is_join_column:
+                benefit = "This enables more efficient join methods like index nested loop joins instead of hash or merge joins."
+                metrics = "Join operations could be 2-10x faster, especially for queries that return a small subset of rows."
+            elif is_sort_column:
+                benefit = "PostgreSQL can use the index to read data in already-sorted order, eliminating the sort operation."
+                metrics = "Operations with ORDER BY could be 2-5x faster for large result sets."
+            elif is_group_column:
+                benefit = "The index can speed up GROUP BY operations by providing pre-sorted input."
+                metrics = "Aggregate queries could see a 2-4x performance improvement."
+            else:
+                benefit = "The index will significantly speed up operations on these columns."
+                metrics = "Expect a 2-10x performance improvement for queries using these columns."
+    
+    # Check for VACUUM or statistics recommendation
+    elif "VACUUM" in rec_text or "ANALYZE" in rec_text:
+        problem = "The table statistics are outdated, causing the query planner to make sub-optimal decisions."
+        solution = "Running VACUUM ANALYZE will update the statistics and reclaim dead space."
+        benefit = "The query planner will make better decisions about execution strategy, join methods, and index usage."
+        metrics = "Queries could see a 1.5-3x speed improvement from better execution plans."
+    
+    # Check for partitioning recommendation
+    elif "PARTITION" in rec_text:
+        problem = "Queries are scanning a very large table when only a subset of data is needed."
+        solution = "Partitioning the table will divide it into smaller, manageable chunks based on a key column."
+        benefit = "Queries can target only relevant partitions, dramatically reducing I/O and scan time."
+        metrics = "For time-based or range queries, expect 5-20x performance improvement as PostgreSQL can skip irrelevant partitions."
+    
+    # Check for rewriting complex query
+    elif "REWRITE" in rec_text.upper() or "rewrite" in rec_text.lower():
+        problem = "The query uses patterns that prevent efficient execution or index usage."
+        if "FUNCTION" in query_text.upper() or "(" in query_text:
+            problem = "Functions in WHERE clauses prevent index usage, forcing full table scans."
+            solution = "Rewrite the query to avoid functions on indexed columns in WHERE clauses."
+        elif "IN (SELECT" in query_text.upper() or "EXISTS" in query_text.upper():
+            problem = "The subquery structure prevents efficient execution planning."
+            solution = "Rewrite using JOINs instead of correlated subqueries."
+        elif "LIKE '%..." in query_text:
+            problem = "Leading wildcard in LIKE prevents index usage, forcing full table scans."
+            solution = "Consider using a trigram index or full-text search for pattern matching."
+        else:
+            solution = "Restructuring the query to use more efficient patterns would improve performance."
+        
+        benefit = "The restructured query can use indexes properly and allows the planner better optimization options."
+        metrics = "Properly rewritten queries can be 2-50x faster depending on the specific pattern being fixed."
+    
+    # Check for materialized view recommendation
+    elif "MATERIALIZED VIEW" in rec_text:
+        problem = "Complex query with expensive joins or aggregations is executed repeatedly."
+        solution = "Create a materialized view to pre-compute and store the results."
+        benefit = "Queries will access pre-computed data instead of executing the full query each time."
+        metrics = "Access to the data could be 10-100x faster, with the trade-off of slightly delayed data updates."
+    
+    # Construct the full explanation
+    if problem and solution:
+        explanation = f"**Problem:** {problem}\n\n**Solution:** {solution}\n\n**Benefit:** {benefit}"
+        if metrics:
+            explanation += f"\n\n**Expected Impact:** {metrics}"
+        return explanation
+    
+    # Default explanation if no specific pattern matched
+    return "This optimization targets specific bottlenecks in the query by improving how the database accesses and processes the data. The recommendation is based on analyzing the query structure and identifying potential performance issues."
+
 def show_log_analysis():
     """Display the log analysis page."""
     st.title("PostgreSQL Log Analysis")
@@ -227,10 +337,39 @@ def show_log_analysis():
                 # Analyze queries and generate recommendations
                 recommendations = index_recommender.analyze_queries(all_queries)
                 
-                # Store recommendations in session state
-                st.session_state["recommendations"] = recommendations
+                # Create a dictionary to store example queries for each recommendation
+                recommendation_examples = {}
+                recommendation_explanations = {}
                 
-                st.success(f"✅ Generated {len(recommendations)} optimization recommendations.")
+                # Find relevant example queries for each recommendation
+                for i, rec in enumerate(recommendations):
+                    # Find a relevant query example for this recommendation
+                    example_query = None
+                    for query in slow_queries:
+                        # Check if query touches tables mentioned in recommendation
+                        if hasattr(query, 'tables_accessed') and query.tables_accessed and any(table in str(rec) for table in query.tables_accessed):
+                            example_query = query.query_text
+                            break
+                    
+                    # If no direct match found, take the slowest query as an example
+                    if not example_query and slow_queries:
+                        example_query = slow_queries[0].query_text
+                    
+                    # Add example to our mapping dictionary
+                    if example_query:
+                        formatted_example, detected_tables = format_query_for_display(example_query)
+                        recommendation_examples[i] = formatted_example
+                        
+                        # Generate explanation of how this recommendation improves the query
+                        explanation = generate_improvement_explanation(rec, example_query, detected_tables)
+                        recommendation_explanations[i] = explanation
+                
+                # Store recommendations, examples and explanations in session state
+                st.session_state["recommendations"] = recommendations
+                st.session_state["recommendation_examples"] = recommendation_examples
+                st.session_state["recommendation_explanations"] = recommendation_explanations
+                
+                st.success(f"✅ Generated {len(recommendations)} optimization recommendations with query examples and performance impact explanations.")
     
     # Only show results if we have analyzed queries
     if "analyzed_queries" not in st.session_state:
@@ -455,6 +594,7 @@ def show_log_analysis():
                 
                 # Create a dictionary to store example queries for each recommendation
                 recommendation_examples = {}
+                recommendation_explanations = {}
                 
                 # Find relevant example queries for each recommendation
                 for i, rec in enumerate(recommendations):
@@ -472,14 +612,19 @@ def show_log_analysis():
                     
                     # Add example to our mapping dictionary
                     if example_query:
-                        formatted_example, _ = format_query_for_display(example_query)
+                        formatted_example, detected_tables = format_query_for_display(example_query)
                         recommendation_examples[i] = formatted_example
+                        
+                        # Generate explanation of how this recommendation improves the query
+                        explanation = generate_improvement_explanation(rec, example_query, detected_tables)
+                        recommendation_explanations[i] = explanation
                 
-                # Store both recommendations and examples in session state
+                # Store recommendations, examples and explanations in session state
                 st.session_state["recommendations"] = recommendations
                 st.session_state["recommendation_examples"] = recommendation_examples
+                st.session_state["recommendation_explanations"] = recommendation_explanations
                 
-                st.success(f"✅ Generated {len(recommendations)} optimization recommendations with query examples.")
+                st.success(f"✅ Generated {len(recommendations)} optimization recommendations with query examples and performance impact explanations.")
     
     with col2:
         if st.button("View Recommendations", use_container_width=True):
