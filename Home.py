@@ -33,7 +33,7 @@ PAGES = {
 st.sidebar.title("PostgreSQL DBA Assistant")
 st.sidebar.image("https://www.postgresql.org/media/img/about/press/elephant.png", width=100)
 selection = st.sidebar.radio("Navigate to", list(PAGES.keys()))
-
+ 
 # Display the selected page
 PAGES[selection]()
 
