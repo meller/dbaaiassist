@@ -2,6 +2,12 @@
 
 A powerful AI-assisted database management and optimization tool that provides database insights, performance recommendations, and log analysis.
 
+## Disclaimer
+
+**EXPERIMENTAL SOFTWARE**: This tool is in early development and is considered experimental. Use with caution in non-production environments only.
+
+**IMPORTANT**: Always review and verify any AI-generated recommendations before implementing them in your database. The tool provides suggestions based on analysis, but the final decision and responsibility for any database changes rest with the user.
+
 ## Features
 
 - **Database Connection Management**: Securely connect to and manage PostgreSQL databases
