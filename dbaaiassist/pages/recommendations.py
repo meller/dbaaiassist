@@ -172,12 +172,12 @@ def show_recommendations():
                         # For the MVP, we'll just update the status
                         rec.implement()
                         st.success("Recommendation marked as implemented!")
-                        st.experimental_rerun()
+                        st.rerun()
                     
                     if st.button("Dismiss", key=f"dismiss_{rec.recommendation_id}", use_container_width=True):
                         rec.dismiss()
                         st.info("Recommendation dismissed.")
-                        st.experimental_rerun()
+                        st.rerun()
                 elif rec.status == RecommendationStatus.IMPLEMENTED:
                     st.success("Implemented")
                     implemented_date = rec.implemented_at.strftime("%Y-%m-%d") if rec.implemented_at else "Unknown"
@@ -188,7 +188,7 @@ def show_recommendations():
                         rec.status = RecommendationStatus.PENDING
                         rec.updated_at = rec.created_at.__class__.now()
                         st.info("Recommendation restored.")
-                        st.experimental_rerun()
+                        st.rerun()
     
     # Export options
     st.markdown("### Export Recommendations")
