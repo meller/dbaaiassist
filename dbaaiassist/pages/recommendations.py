@@ -16,6 +16,9 @@ def show_recommendations():
     # Get recommendations from session state
     recommendations = st.session_state.get("recommendations", [])
     
+    # Get example queries for recommendations (if available)
+    recommendation_examples = st.session_state.get("recommendation_examples", {})
+    
     if not recommendations:
         st.info("No recommendations available yet. Analyze logs or database to generate recommendations.")
         
@@ -108,7 +111,7 @@ def show_recommendations():
         return
     
     # Display recommendations
-    for rec in filtered_recommendations:
+    for i, rec in enumerate(filtered_recommendations):
         with st.container(border=True):
             # Two-column layout: details and actions
             col1, col2 = st.columns([4, 1])
@@ -127,6 +130,13 @@ def show_recommendations():
                     if rec.related_objects:
                         st.markdown("**Related Objects**")
                         st.markdown(", ".join(rec.related_objects))
+                    
+                    # Example query that triggered this recommendation
+                    original_index = filtered_recommendations.index(rec)
+                    if str(original_index) in recommendation_examples or original_index in recommendation_examples:
+                        example_key = str(original_index) if str(original_index) in recommendation_examples else original_index
+                        st.markdown("**Example Query**")
+                        st.code(recommendation_examples[example_key], language="sql")
                     
                     # SQL script
                     if rec.sql_script:

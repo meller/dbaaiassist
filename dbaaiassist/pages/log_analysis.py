@@ -306,16 +306,7 @@ def show_log_analysis():
             )
             st.plotly_chart(fig, use_container_width=True)
             
-            # Add a button to generate recommendations
-            if st.button("Generate Recommendation"):
-                if 'slow_queries' in st.session_state and st.session_state.slow_queries:
-                    # Get the selected slow query
-                    selected_query = st.session_state.slow_queries[0]  # Assuming first query is the slowest
-                    st.session_state.selected_slow_query = selected_query.query_text  # Store the query text
-                    st.session_state.generate_recommendation = True
-                    st.rerun()  # Updated from st.experimental_rerun()
-                else:
-                    st.warning("No slow queries available for analysis.")
+            # Removed the individual "Generate Recommendation" button as it was redundant
     
     with tab2:
         if not query_patterns:
@@ -439,7 +430,7 @@ def show_log_analysis():
     
     if "recommendations" in st.session_state and st.session_state["recommendations"]:
         rec_count = len(st.session_state["recommendations"])
-        st.success(f"✅ {rec_count} recommendations generated. Go to the Recommendations page to view them.")
+        st.success(f"✅ {rec_count} recommendations generated with query examples. Go to the Recommendations page to view them.")
     
     col1, col2 = st.columns(2)
     
@@ -462,10 +453,33 @@ def show_log_analysis():
                 # Analyze queries and generate recommendations
                 recommendations = index_recommender.analyze_queries(queries)
                 
-                # Store in session state
-                st.session_state["recommendations"] = recommendations
+                # Create a dictionary to store example queries for each recommendation
+                recommendation_examples = {}
                 
-                st.success(f"✅ Generated {len(recommendations)} optimization recommendations.")
+                # Find relevant example queries for each recommendation
+                for i, rec in enumerate(recommendations):
+                    # Find a relevant query example for this recommendation
+                    example_query = None
+                    for query in slow_queries:
+                        # Check if query touches tables mentioned in recommendation
+                        if hasattr(query, 'tables_accessed') and query.tables_accessed and any(table in str(rec) for table in query.tables_accessed):
+                            example_query = query.query_text
+                            break
+                    
+                    # If no direct match found, take the slowest query as an example
+                    if not example_query and slow_queries:
+                        example_query = slow_queries[0].query_text
+                    
+                    # Add example to our mapping dictionary
+                    if example_query:
+                        formatted_example, _ = format_query_for_display(example_query)
+                        recommendation_examples[i] = formatted_example
+                
+                # Store both recommendations and examples in session state
+                st.session_state["recommendations"] = recommendations
+                st.session_state["recommendation_examples"] = recommendation_examples
+                
+                st.success(f"✅ Generated {len(recommendations)} optimization recommendations with query examples.")
     
     with col2:
         if st.button("View Recommendations", use_container_width=True):
@@ -474,7 +488,7 @@ def show_log_analysis():
             else:
                 st.switch_page("pages/3_Recommendations.py")
     
-    # Add a section for query recommendations
+    # Modified section for individual query recommendation
     if 'generate_recommendation' in st.session_state and st.session_state.generate_recommendation:
         with st.spinner("Generating recommendations..."):
             # Get the selected slow query
